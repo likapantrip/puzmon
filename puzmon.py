@@ -1,5 +1,6 @@
 # インポート
 import random
+import re
 
 # グローバル変数の宣言
 ELEMENT_SYMBOLS = {
@@ -21,7 +22,7 @@ ELEMENT_COLORS = {
 }
 
 GEM_ELEMENT = ['火', '水', '風', '土', '命']
-COMMAND = "ABCDEFGHIGKLMN"
+COMMAND = "ABCDEFGHIJKLMN"
 
 # 関数宣言
 def main():
@@ -133,12 +134,19 @@ def fill_gems(gems):
     return new_gems
 
 def on_player_turn(battle_field):
-    party, enemy = battle_field['party'], battle_field['enemy']
+    party = battle_field['party']
+    gems = battle_field['gems']
+
     print(f'【{party['player_name']}のターン】(HP= {party['hp']})')
-    
     show_battle_field(battle_field)
+
     command = input('コマンド入力 >>')
-    do_attack(enemy, command)
+    while not check_valid_command(command):
+        print('A~Nの大文字2文字でコマンド入力してください。同じ文字を入力することはできません')
+        command = input('コマンド入力 >>')
+    
+    move_gem(gems, command)
+    evaluate_gems(battle_field, command)
 
 def show_battle_field(battle_field):
     enemy = battle_field['enemy']
@@ -170,6 +178,49 @@ def print_gems(gems):
     gems_with_color_code = [f'\033[3{ELEMENT_COLORS[element]}m{ELEMENT_SYMBOLS[element]}\033[0m' for element in gems]
     for gem in gems_with_color_code:
         print(gem, end=' ')
+
+def check_valid_command(command):
+    pattern = r'^([A-N])(?!\1)[A-N]$'
+    if re.match(pattern, command):
+        return True
+    else:
+        return False
+
+def move_gem(gems, command):
+    global COMMAND
+    start_index = COMMAND.index(command[0])
+    end_index = COMMAND.index(command[1])
+
+    if start_index < end_index:
+        direction = 1
+        move_count = end_index - start_index
+    else:
+        direction = -1
+        move_count = start_index - end_index
+
+    print_gems(gems)
+    print('')
+
+    for i in range(0, move_count):
+        swap_gems(gems, start_index+(i*direction), direction)
+        print_gems(gems)
+        print('')
+
+def swap_gems(gems, designated_gem_idx, direction):
+    """
+    designated_gem_idx：移動させる宝石
+    direction:  右なら１、左なら−１に動かす
+    """
+    # 隣の宝石をtmpに格納
+    tmp = gems[designated_gem_idx + direction]
+    # 移動させる宝石を隣に格納
+    gems[designated_gem_idx + direction] = gems[designated_gem_idx]
+    # 隣の宝石を移動元に格納
+    gems[designated_gem_idx] = tmp
+
+def evaluate_gems(battle_field, command):
+    enemy = battle_field['enemy']
+    do_attack(enemy, command)
 
 def do_attack(enemy, command):
     damage = hash(command) % 50
