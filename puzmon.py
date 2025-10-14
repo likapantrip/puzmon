@@ -14,12 +14,12 @@ ELEMENT_SYMBOLS = {
 }
 
 ELEMENT_COLORS = {
-    '火': 1,
-    '水': 6,
-    '風': 2,
-    '土': 3,
-    '命': 5,
-    '無': 7
+    '火': '41',
+    '水': '44',
+    '風': '42',
+    '土': '43',
+    '命': '45',
+    '無': '47'
 }
 
 GEM_ELEMENT = ['火', '水', '風', '土', '命']
@@ -64,7 +64,7 @@ def print_monster_name(monster):
     symbol = ELEMENT_SYMBOLS[element]
     color = ELEMENT_COLORS[element]
     monster_name = monster['name']
-    print(f'\033[3{color}m{symbol}{monster_name}{symbol}\033[0m', end='')
+    print(f'\033[{color}m{symbol}{monster_name}{symbol}\033[0m', end='')
 
 def organize_party(player_name, friends):
     total_hp = sum([f['hp'] for f in friends])
@@ -176,7 +176,7 @@ def show_battle_field(battle_field):
     print('-' * 28)
 
 def print_gems(gems):
-    gems_with_color_code = [f'\033[3{ELEMENT_COLORS[element]}m{ELEMENT_SYMBOLS[element]}\033[0m' for element in gems]
+    gems_with_color_code = [f'\033[{ELEMENT_COLORS[element]}m{ELEMENT_SYMBOLS[element]}\033[0m' for element in gems]
     for gem in gems_with_color_code:
         print(gem, end=' ')
 
