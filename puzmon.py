@@ -267,8 +267,8 @@ def shift_gems(gems, start_idx, end_idx):
     print_gems(gems)
     print('')
     
-    for i in range(start_idx, end_idx):
-        del gems[i]
+    for i in range(start_idx, end_idx+1):
+        del gems[start_idx]
         gems.append('無')
         print_gems(gems)
         print('')
