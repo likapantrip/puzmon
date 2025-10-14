@@ -1,6 +1,7 @@
 # インポート
 import random
 import re
+import itertools
 
 # グローバル変数の宣言
 ELEMENT_SYMBOLS = {
@@ -9,16 +10,16 @@ ELEMENT_SYMBOLS = {
     '風': '@',
     '土': '#',
     '命': '&',
-    '無': '-'
+    '無': ' '
 }
 
 ELEMENT_COLORS = {
-    '火': 1,
-    '水': 6,
-    '風': 2,
-    '土': 3,
-    '命': 5,
-    '無': 7
+    '火': '41',
+    '水': '44',
+    '風': '42',
+    '土': '43',
+    '命': '45',
+    '無': '47'
 }
 
 GEM_ELEMENT = ['火', '水', '風', '土', '命']
@@ -63,7 +64,7 @@ def print_monster_name(monster):
     symbol = ELEMENT_SYMBOLS[element]
     color = ELEMENT_COLORS[element]
     monster_name = monster['name']
-    print(f'\033[3{color}m{symbol}{monster_name}{symbol}\033[0m', end='')
+    print(f'\033[{color}m{symbol}{monster_name}{symbol}\033[0m', end='')
 
 def organize_party(player_name, friends):
     total_hp = sum([f['hp'] for f in friends])
@@ -175,7 +176,7 @@ def show_battle_field(battle_field):
     print('-' * 28)
 
 def print_gems(gems):
-    gems_with_color_code = [f'\033[3{ELEMENT_COLORS[element]}m{ELEMENT_SYMBOLS[element]}\033[0m' for element in gems]
+    gems_with_color_code = [f'\033[{ELEMENT_COLORS[element]}m{ELEMENT_SYMBOLS[element]}\033[0m' for element in gems]
     for gem in gems_with_color_code:
         print(gem, end=' ')
 
@@ -219,19 +220,68 @@ def swap_gems(gems, designated_gem_idx, direction):
     gems[designated_gem_idx] = tmp
 
 def evaluate_gems(battle_field, command):
+    gems = battle_field['gems']
+    start_idx, end_idx = check_banishable(gems)
+    if start_idx is None:
+        print('攻撃が失敗しました')
+    else:
+        banish_gems(battle_field, start_idx, end_idx, command)
+        shift_gems(gems, start_idx, end_idx)
+        spawn_gems(gems)
+
+def check_banishable(gems):
+    result = []
+    index = 0
+    for key, group in itertools.groupby(gems):
+        group_list = list(group)
+        length = len(group_list)
+        if length >= 3:
+            start = index
+            end = index + length - 1
+            result.append((start, end))
+        index += length
+    if result:
+       return result[0]
+    else:
+        return None, None
+
+def banish_gems(battle_field, start_idx, end_idx, command):
+    gems = battle_field['gems']
     enemy = battle_field['enemy']
+
+    for i in range(start_idx, end_idx+1):
+        gems[i] = '無'
+    print_gems(gems)
+    print('')
     do_attack(enemy, command)
 
 def do_attack(enemy, command):
     damage = hash(command) % 50
     damage = int(random.uniform(damage - 0.1*damage, damage + 0.1*damage))
     print(f'相手に{damage}のダメージを与えた')
-    print('')
     enemy['hp'] -= damage
     if enemy['hp'] <= 0:
         enemy['hp'] = 0
 
+def shift_gems(gems, start_idx, end_idx):
+    print_gems(gems)
+    print('')
+    
+    for i in range(start_idx, end_idx):
+        del gems[i]
+        gems.append('無')
+        print_gems(gems)
+        print('')
+
+def spawn_gems(gems):
+    for i in range(14):
+        if gems[i] == '無':
+            gems[i] = random.choice(GEM_ELEMENT)
+    print_gems(gems)
+    print('')
+
 def on_enemy_turn(party, enemy):
+    print('')
     print(f'【{enemy['name']}のターン】(HP= {enemy['hp']})')
     do_enemy_attack(party)
 
