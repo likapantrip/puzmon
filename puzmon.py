@@ -25,6 +25,17 @@ ELEMENT_COLORS = {
 GEM_ELEMENT = ['火', '水', '風', '土', '命']
 COMMAND = "ABCDEFGHIJKLMN"
 
+ELEMENT_BOOST = {
+    ('水', '火'): 2.0,
+    ('火', '風'): 2.0,
+    ('風', '土'): 2.0,
+    ('土', '水'): 2.0,
+    ('火', '水'): 0.5,
+    ('風', '火'): 0.5,
+    ('土', '風'): 0.5,
+    ('水', '土'): 0.5,
+}
+
 # 関数宣言
 def main():
     player_name = input('プレイヤー名を入力してください >>')
@@ -117,7 +128,7 @@ def do_battle(party, enemy):
         on_player_turn(battle_field)
         if enemy['hp'] <= 0:
             break
-        on_enemy_turn(party, enemy)
+        on_enemy_turn(battle_field)
         if party['hp'] <= 0:
             print('パーティのHPは0になりました')
             return 0
@@ -221,12 +232,12 @@ def swap_gems(gems, designated_gem_idx, direction):
 
 def evaluate_gems(battle_field, command):
     gems = battle_field['gems']
-    start_idx, end_idx = check_banishable(gems)
-    if start_idx is None:
+    check_banish = check_banishable(gems)
+    if check_banish[0] is None:
         print('攻撃が失敗しました')
     else:
-        banish_gems(battle_field, start_idx, end_idx, command)
-        shift_gems(gems, start_idx, end_idx)
+        banish_gems(battle_field, check_banish)
+        shift_gems(gems, check_banish)
         spawn_gems(gems)
 
 def check_banishable(gems):
@@ -236,34 +247,95 @@ def check_banishable(gems):
         group_list = list(group)
         length = len(group_list)
         if length >= 3:
+            gem = gems[index]
             start = index
             end = index + length - 1
-            result.append((start, end))
+            result.append((gem, start, end))
         index += length
     if result:
        return result[0]
     else:
-        return None, None
+        return None, None, None
 
-def banish_gems(battle_field, start_idx, end_idx, command):
+def banish_gems(battle_field, check_banish):
+    party = battle_field['party']
     gems = battle_field['gems']
-    enemy = battle_field['enemy']
+    friend_element = check_banish[0]
+    start_idx = check_banish[1]
+    end_idx = check_banish[2]
 
     for i in range(start_idx, end_idx+1):
         gems[i] = '無'
     print_gems(gems)
     print('')
-    do_attack(enemy, command)
+    
+    if friend_element == '命':
+        do_recover(party, start_idx, end_idx)
+    else:
+        do_attack(battle_field, check_banish)
 
-def do_attack(enemy, command):
-    damage = hash(command) % 50
-    damage = int(random.uniform(damage - 0.1*damage, damage + 0.1*damage))
-    print(f'相手に{damage}のダメージを与えた')
+def do_recover(party, start_idx, end_idx, combo=1):
+    party_hp = party['hp']
+    element_num = end_idx - start_idx + 1
+    
+    combo_b = combo_boost(element_num, combo)
+    recover = 20 * combo_b
+    recover = blur_damage(recover)
+
+    if party_hp + recover < party['max_hp']:
+        party_hp += recover
+    else:
+        recover = party['max_hp'] - party_hp
+        party_hp = party['max_hp']
+    print(f'HPが{recover}回復し、{party_hp}になりました')
+
+def combo_boost(element_num, combo):
+    combo = 1.5**(element_num - 3 + combo)
+    return combo
+
+def blur_damage(value):
+    ten_percent = value * 0.1
+    return int(random.uniform(value - ten_percent, value + ten_percent))
+
+def do_attack(battle_field, check_banish, combo=1):
+    enemy = battle_field['enemy']
+    party = battle_field['party']
+
+    element_num = check_banish[2] - check_banish[1] + 1
+    friend_element = check_banish[0]
+
+    friend = list(filter(lambda x: x['element'] == friend_element, party['friends']))[0]
+    damage = do_calc_damage(friend, enemy, check_banish, element_num)
+
     enemy['hp'] -= damage
     if enemy['hp'] <= 0:
         enemy['hp'] = 0
+    
+    print_monster_name(friend)
+    print('の攻撃！')
+    print_monster_name(enemy)
+    print(f'に{damage}のダメージを与えた')
 
-def shift_gems(gems, start_idx, end_idx):
+def do_calc_damage(friend, enemy, check_banish, element_num, combo=1):
+    friend_element = check_banish[0]
+    element_num = check_banish[2] - check_banish[1] + 1
+    enemy_element = enemy['element']
+
+    boost = ELEMENT_BOOST.get((friend_element, enemy_element), 1.0)
+    combo_b = combo_boost(element_num, combo)
+    
+    damage = (friend['ap'] - enemy['dp']) * boost * combo_b
+    damage = blur_damage(damage)
+
+    if damage <= 0:
+        damage = 1
+    
+    return damage
+
+def shift_gems(gems, check_banish):
+    start_idx = check_banish[1]
+    end_idx = check_banish[2]
+
     print_gems(gems)
     print('')
     
@@ -280,13 +352,23 @@ def spawn_gems(gems):
     print_gems(gems)
     print('')
 
-def on_enemy_turn(party, enemy):
+def on_enemy_turn(battle_field):
+    enemy = battle_field['enemy']
+
     print('')
     print(f'【{enemy['name']}のターン】(HP= {enemy['hp']})')
-    do_enemy_attack(party)
+    do_enemy_attack(battle_field)
 
-def do_enemy_attack(party):
-    damage = 10
+def do_enemy_attack(battle_field):
+    party = battle_field['party']
+    enemy = battle_field['enemy']
+
+    damage = enemy['ap'] - party['dp']
+    damage = blur_damage(damage)
+
+    if damage <= 0:
+        damage = 1
+
     party['hp'] -= damage
     print(f'{damage}のダメージを受けた')
     print('')
